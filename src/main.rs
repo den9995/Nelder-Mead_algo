@@ -40,7 +40,8 @@ impl ProvidedFunc<'_> {
          }
          println!("xc {:#?}",xc);
          println!("vec {:#?}, values {:#?}, {} {} {}",vec,vec.iter().map(|row| self.compute(row)).collect::<Vec<f64>>(),a,b,g);
-         self.shrink(&mut vec, &xc,b);
+         let mut xr = vec![0.50; self.count_x()];
+         self.expand(&mut vec, &xc,&xr,g);
          println!("vec {:#?}, values {:#?}, {} {} {}",vec,vec.iter().map(|row| self.compute(row)).collect::<Vec<f64>>(),a,b,g);
       }
    }
@@ -69,6 +70,24 @@ impl ProvidedFunc<'_> {
          }
       }
    }
+   fn expand(&self, vec: &mut Vec<Vec<f64>>, xc: &Vec<f64>, xr: &Vec<f64>, g:f64) {
+      let mut xe = vec![0.0; self.count_x()];
+      for i in 0..self.count_x() {
+         xe[i] = (1.0-g)*xc[i]+g*xr[i];
+      }
+      let worst = vec.len()-1;
+      if self.compute(&xe) <= self.compute(&xr) {
+         for i in 0..self.count_x() {
+            vec[worst][i] = xe[i];
+         }
+      } else {
+         for i in 0..self.count_x() {
+            vec[worst][i] = xr[i];
+         }
+         
+      }
+      
+   }
 }
 #[cfg(test)]
 mod tests {
@@ -89,7 +108,18 @@ mod tests {
       xc = [5.0, 7.0].to_vec();
       func.shrink(&mut vec, &xc,0.5);
       assert_eq!(vec[vec.len()-2],[1.0, 2.0].to_vec());
-      //assert_eq!(func.reflect(&xw,&xc,1.0),[3.0, 3.0].to_vec());
+   }
+   #[test]
+   fn test_expand() {
+      let func = ProvidedFunc { s:"x1 2 pow x2 2 pow +" };
+      let mut vec = [ [1.0, 1.0].to_vec(), [1.0, 3.0].to_vec(), [3.0, 3.0].to_vec()].to_vec();
+      let xc = [5.0/3.0, 7.0/3.0].to_vec();
+      let mut xr = [1.0, 1.0].to_vec();
+      func.expand(&mut vec, &xc , &xr,2.0);
+      assert_eq!(vec[vec.len()-1],[0.33333333333333326, -0.3333333333333335].to_vec());
+      xr = [5.0, 7.0].to_vec();
+      func.expand(&mut vec, &xc, &xr ,2.0);
+      assert_eq!(vec[vec.len()-1],[5.0, 7.0].to_vec());
    }
 }
 

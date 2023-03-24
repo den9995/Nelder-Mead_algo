@@ -1,11 +1,12 @@
 use random::Source;
 use std::cmp::Ordering;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::cmp::max;
+use std::time::{SystemTime};
 
 
 fn main() {
    let string =  "x1 + x2";
-   let func = ProvidedFunc { s: "x1 2 pow x2 2 pow +"};
+   let func = ProvidedFunc { s: "( x1 - 2 ) ^ 2 + ( 9 + x2 ) ^ 2 + ( x3 - 1.4 )^2"};
    func.nelder_mid(1.0,0.5,2.0);
    
 }
@@ -14,17 +15,35 @@ pub struct ProvidedFunc<'a> {
 }
 impl ProvidedFunc<'_> {
    pub fn compute(&self, x: &Vec<f64>) -> f64 {
-      return (x[0]-0.5).powf(2.0)+(x[1]+0.5).powf(2.0);
+      let parts = self.s.split(' ').collect::<Vec<_>>();
+      let mut result : String = Default::default();
+      let mut count = 0;
+      for p in &parts {
+         if p.starts_with('x') {
+            let num = (&p[1..]).parse::<usize>().unwrap();
+            result.push_str(&x[num-1].to_string());
+         } else {
+            result.push_str(&p);
+         }
+      }
+      return mexprp::eval::<f64>(result.as_str()).unwrap().unwrap_single();
    }
    pub fn count_x(&self) -> usize {
-      return 2;
+      let parts = self.s.split(' ').collect::<Vec<_>>();
+      let mut count = 0;
+      for p in &parts {
+         if p.starts_with('x') {
+            count = max(count, (&p[1..]).parse::<usize>().unwrap());
+         }
+      }
+      return count;
    }
    pub fn nelder_mid(&self, a: f64, b: f64, g: f64) {
-      let maxSteps = 1000000;
+      let maxSteps = 100;
       let mut stepsn = maxSteps;
       let mut vec = vec![vec![0.0; self.count_x()]; self.count_x()+1];
-      let start = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).expect("REASON").as_nanos().try_into().unwrap();
-      //let start = 15;
+      //let start = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).expect("REASON").as_nanos().try_into().unwrap();
+      let start =  1679680043162523086;
       let mut rng = random::default(start);
       println!("rng seed {}, ", start);
       for j in 0..(self.count_x()) {
@@ -35,12 +54,11 @@ impl ProvidedFunc<'_> {
             vec[i][j]=vec[i-1][j]+(rng.read::<f64>()-0.5)*2.0;
          }
       }
-      //println!("vec {:#?}, ", vec);
-      //println!("values {:#?}",vec.iter().map(|row| self.compute(row)).collect::<Vec<f64>>());
+      println!("random values {:#?}",vec.iter().map(|row| self.compute(row)).collect::<Vec<f64>>());
       for n in 0..maxSteps{
          vec.sort_by(|a, b| self.compute(a).partial_cmp(&self.compute(b)).unwrap_or(Ordering::Equal));
          let diff = self.compute(&vec[self.count_x()])-self.compute(&vec[0]);
-         if diff < 0.0000001 {
+         if diff < 0.000001 {
             stepsn=n;
             break;
          }
@@ -54,8 +72,7 @@ impl ProvidedFunc<'_> {
       }
       
       vec.sort_by(|a, b| self.compute(a).partial_cmp(&self.compute(b)).unwrap_or(Ordering::Equal));
-      println!("vec {:#?}, {}", vec, stepsn);
-      println!("values {:#?}",vec.iter().map(|row| self.compute(row)).collect::<Vec<f64>>());
+      println!("after method values {:#?}, {} steps",vec.iter().map(|row| self.compute(row)).collect::<Vec<f64>>(),stepsn);
    }
    fn reflect(&self, vec: &mut Vec<Vec<f64>>, xc: &Vec<f64>, a:f64, b:f64, g:f64)  {
       let mut xr = vec![0.0; self.count_x()];
@@ -122,12 +139,12 @@ mod tests {
    use super::*;
    #[test]
    fn test_add_squares_func() {
-      let func = ProvidedFunc { s:"x1 2 pow x2 2 pow +" };
+      let func = ProvidedFunc { s:"( x1 -0.5)^2+( x2 +0.5)^ 2" };
       assert_eq!(func.compute(&[1.0, 2.0].to_vec()), 6.5);
    }
    #[test]
    fn test_shrink() {
-      let func = ProvidedFunc { s:"x1 2 pow x2 2 pow +" };
+      let func = ProvidedFunc { s:"( x1 -0.5)^2+( x2 +0.5)^ 2" };
       let mut vec = [ [1.0, 1.0].to_vec(), [1.0, 3.0].to_vec(), [3.0, 3.0].to_vec()].to_vec();
       let mut xc = [5.0/3.0, 7.0/3.0].to_vec();
       func.shrink(&mut vec, &xc,0.5);
@@ -138,7 +155,7 @@ mod tests {
    }
    #[test]
    fn test_expand() {
-      let func = ProvidedFunc { s:"x1 2 pow x2 2 pow +" };
+      let func = ProvidedFunc { s:"( x1 -0.5)^2+( x2 +0.5)^ 2" };
       let mut vec = [ [1.0, 1.0].to_vec(), [1.0, 3.0].to_vec(), [3.0, 3.0].to_vec()].to_vec();
       let xc = [5.0/3.0, 7.0/3.0].to_vec();
       let mut xr = [1.0, 1.0].to_vec();

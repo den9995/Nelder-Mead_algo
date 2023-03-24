@@ -8,8 +8,8 @@ use std::env;
 
 fn main() {
    let args: Vec<String> = env::args().collect();
-   let defString =  "( x1 - 2 ) ^ 2 + ( 9 + x2 ) ^ 2 + ( x3 - 1.4 )^2";
-   let mut string;
+   let def_string =  "( x1 - 2 ) ^ 2 + ( 9 + x2 ) ^ 2 + ( x3 - 1.4 )^2";
+   let string;
    let mut result : String = Default::default();
    if args.len() != 1 {
       for a in (&args).iter().skip(1) {
@@ -18,7 +18,7 @@ fn main() {
       }
       string = result.as_str();
    } else {
-      string = defString;
+      string = def_string;
    }
    println!("evaluation string {}, ", string);
    let func = ProvidedFunc { s: string};
@@ -33,7 +33,6 @@ impl ProvidedFunc<'_> {
    pub fn compute(&self, x: &Vec<f64>) -> f64 {
       let parts = self.s.split(' ').collect::<Vec<_>>();
       let mut result : String = Default::default();
-      let mut count = 0;
       for p in &parts {
          if p.starts_with('x') {
             let num = (&p[1..]).parse::<usize>().unwrap();
@@ -57,8 +56,8 @@ impl ProvidedFunc<'_> {
       return count;
    }
    pub fn nelder_mid(&self, a: f64, b: f64, g: f64) -> Vec<f64> {
-      let maxSteps = 100;
-      let mut stepsn = maxSteps;
+      let max_steps = 100;
+      let mut stepsn = max_steps;
       let mut vec = vec![vec![0.0; self.count_x()]; self.count_x()+1];
       let start = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).expect("REASON").as_nanos().try_into().unwrap();
       //let start =  1679680043162523086;
@@ -73,7 +72,7 @@ impl ProvidedFunc<'_> {
          }
       }
       println!("random values {:#?}",vec.iter().map(|row| self.compute(row)).collect::<Vec<f64>>());
-      for n in 0..maxSteps{
+      for n in 0..max_steps{
          vec.sort_by(|a, b| self.compute(a).partial_cmp(&self.compute(b)).unwrap_or(Ordering::Equal));
          let diff = self.compute(&vec[self.count_x()])-self.compute(&vec[0]);
          if diff < 0.000001 {

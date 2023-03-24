@@ -2,12 +2,28 @@ use random::Source;
 use std::cmp::Ordering;
 use std::cmp::max;
 use std::time::{SystemTime};
+use std::env;
+
 
 
 fn main() {
-   let string =  "x1 + x2";
-   let func = ProvidedFunc { s: "( x1 - 2 ) ^ 2 + ( 9 + x2 ) ^ 2 + ( x3 - 1.4 )^2"};
-   func.nelder_mid(1.0,0.5,2.0);
+   let args: Vec<String> = env::args().collect();
+   let defString =  "( x1 - 2 ) ^ 2 + ( 9 + x2 ) ^ 2 + ( x3 - 1.4 )^2";
+   let mut string;
+   let mut result : String = Default::default();
+   if args.len() != 1 {
+      for a in (&args).iter().skip(1) {
+         result.push_str(&a);
+         result.push_str(" ");
+      }
+      string = result.as_str();
+   } else {
+      string = defString;
+   }
+   println!("evaluation string {}, ", string);
+   let func = ProvidedFunc { s: string};
+   let xval = func.nelder_mid(1.0,0.5,2.0);
+   println!("returned {:?},val {} ",xval, func.compute(&xval));
    
 }
 pub struct ProvidedFunc<'a> {
@@ -21,7 +37,9 @@ impl ProvidedFunc<'_> {
       for p in &parts {
          if p.starts_with('x') {
             let num = (&p[1..]).parse::<usize>().unwrap();
+            result.push_str("(");
             result.push_str(&x[num-1].to_string());
+            result.push_str(")");
          } else {
             result.push_str(&p);
          }
@@ -38,12 +56,12 @@ impl ProvidedFunc<'_> {
       }
       return count;
    }
-   pub fn nelder_mid(&self, a: f64, b: f64, g: f64) {
+   pub fn nelder_mid(&self, a: f64, b: f64, g: f64) -> Vec<f64> {
       let maxSteps = 100;
       let mut stepsn = maxSteps;
       let mut vec = vec![vec![0.0; self.count_x()]; self.count_x()+1];
-      //let start = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).expect("REASON").as_nanos().try_into().unwrap();
-      let start =  1679680043162523086;
+      let start = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).expect("REASON").as_nanos().try_into().unwrap();
+      //let start =  1679680043162523086;
       let mut rng = random::default(start);
       println!("rng seed {}, ", start);
       for j in 0..(self.count_x()) {
@@ -73,6 +91,11 @@ impl ProvidedFunc<'_> {
       
       vec.sort_by(|a, b| self.compute(a).partial_cmp(&self.compute(b)).unwrap_or(Ordering::Equal));
       println!("after method values {:#?}, {} steps",vec.iter().map(|row| self.compute(row)).collect::<Vec<f64>>(),stepsn);
+      let mut xb = vec![0.0; self.count_x()];
+      for i in 0..self.count_x() {
+         xb[i] = vec[0][i];
+      }
+      return xb;
    }
    fn reflect(&self, vec: &mut Vec<Vec<f64>>, xc: &Vec<f64>, a:f64, b:f64, g:f64)  {
       let mut xr = vec![0.0; self.count_x()];
